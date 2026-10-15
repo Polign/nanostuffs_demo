@@ -21,7 +21,7 @@ fi
 
 step "Python packages"
 [ -x .venv/bin/python ] || python3 -m venv .venv
-.venv/bin/pip install -q --upgrade "qdrant-client" "fastembed" "polign-recall>=0.19.0"
+.venv/bin/pip install -q --upgrade -r agent/requirements.txt
 echo "polign-recall $(.venv/bin/pip show polign-recall | awk '/^Version/{print $2}') (brings the recall server)"
 
 step "Models"
@@ -37,7 +37,14 @@ if [[ "${DEMO_MODEL:-ollama:qwen3:8b}" == ollama:* ]] || [ -z "${ANTHROPIC_API_K
   echo "ollama qwen3:8b ready for the chat's rewrite and answer steps"
 fi
 
+step "Web app"
+if command -v npm >/dev/null; then
+  (cd web && npm install --silent) && echo "web/node_modules ready (./web.sh runs the browser demo)"
+else
+  echo "npm not found: the command-line demo works without it; install Node to run ./web.sh"
+fi
+
 step "Handbook"
-.venv/bin/python seed.py
+.venv/bin/python agent/seed.py
 
 printf '\nReady. Run the demo:\n  ./demo.sh\n'

@@ -16,8 +16,8 @@ EMBEDDER = os.environ.get("EMBEDDER", "sentence-transformers/paraphrase-multilin
 
 
 def main() -> None:
-    here = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(here, "handbook.json")) as f:
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "data", "handbook.json")) as f:
         chunks = json.load(f)
     embedder = TextEmbedding(EMBEDDER)
     vectors = list(embedder.embed([c["title"] + "\n" + c["text"] for c in chunks]))

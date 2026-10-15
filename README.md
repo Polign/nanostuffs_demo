@@ -27,34 +27,63 @@ extraction.
 ```sh
 ./setup.sh      # starts Qdrant, makes the venv, checks the models, seeds the handbook
 ./demo.sh       # baseline, then two chats with memory, then the history
+./web.sh        # the same assistant in a browser: Next.js on :3000, the agent on :8000
 ```
 
+## In the browser
+
+`./web.sh` runs the demo the way Nanostuffs would wire it. `agent/server.py` is the
+agent (the EC2 piece): HTTP in front of the same per-turn loop, one Recall
+client per person. `web/` is a small Next.js app. Its route handlers read the
+signed-in user's id from the session cookie and forward `{userId, message}`
+to the agent; the browser never talks to Recall. Each answer expands to show
+what memory knew, the query sent to Qdrant, the passages, and what was
+remembered, and a side panel shows what Recall holds about the person. "New
+chat" clears the screen but not the memory, which is the point.
+
+| Route handler | Does |
+| --- | --- |
+| `POST /api/session` | signs in: a name in an httpOnly cookie stands in for the real session |
+| `POST /api/chat` | forwards `{userId, message, memory}` to the agent's `/chat` |
+| `GET /api/history` | what Recall holds about the signed-in person, with what each value replaced |
+| `DELETE /api/history` | wipes it (demo only; Recall itself never deletes) |
+
+Set `AGENT_URL` to point the app at an agent elsewhere.
+
 `./demo.sh --reset` wipes the memory collections and reseeds the handbook.
-`transcript.txt` is the output of one run with Claude extracting.
+`transcripts/cli-text.txt` is the output of one run with Claude extracting.
 
 `./demo.sh --typed` runs the same turns on Recall's typed tools instead: the
 app proposes facts under the fixed registry in `predicates.json` and Recall
 applies the replace rules. This is the path for a team that wants to control
-exactly what gets remembered. `transcript-typed.txt` is one run of that.
+exactly what gets remembered. `transcripts/cli-typed.txt` is one run of that.
 
 Interactive, as any user:
 
 ```sh
-.venv/bin/python chat.py --user priya
-.venv/bin/python chat.py --user priya --history      # what is remembered, and what each value replaced
-.venv/bin/python chat.py --user priya --no-memory "Does it cover contractors?"   # today's behaviour
-.venv/bin/python chat.py --user priya --typed "What about annual leave?"          # typed tools instead
+.venv/bin/python agent/chat.py --user priya
+.venv/bin/python agent/chat.py --user priya --history      # what is remembered, and what each value replaced
+.venv/bin/python agent/chat.py --user priya --no-memory "Does it cover contractors?"   # today's behaviour
+.venv/bin/python agent/chat.py --user priya --typed "What about annual leave?"          # typed tools instead
 ```
 
 ## What is in here
 
-| File | What it is |
-| --- | --- |
-| `handbook.json` | 12 policy chunks for a fictional company, three languages |
-| `seed.py` | Embeds the chunks with `paraphrase-multilingual-MiniLM-L12-v2` and loads them into the `handbook` collection. Stands in for the existing document pipeline. |
-| `predicates.json` | The registry for `--typed` mode: five things to remember about a person, plus a free-text `note`. Unused in the default text mode, where the extractor names predicates itself. |
-| `chat.py` | The per-turn loop: recall, rewrite, search, answer, remember. The Recall part is `known()` and `remember_text()` (default) or `remember()` (`--typed`). |
-| `demo.sh` | The scripted run. |
+```
+setup.sh, demo.sh, web.sh   one-time setup, the scripted CLI run, the browser demo
+agent/                      the agent: what runs on the EC2 instance in the Nanostuffs setup
+  chat.py                   the per-turn loop: recall, rewrite, search, answer, remember; also the CLI
+  server.py                 the same loop as an HTTP service for the web app
+  seed.py                   embeds the handbook and loads it into Qdrant (stands in for their pipeline)
+data/
+  handbook.json             12 policy chunks for a fictional company, three languages
+  predicates.json           the registry for --typed mode; unused in the default text mode
+web/                        the Next.js chat: sign-in, chat, memory panel, three route handlers
+transcripts/                saved CLI runs: cli-text.txt (default) and cli-typed.txt
+```
+
+The Recall part of `chat.py` is `known()` and `remember_text()` (default) or
+`remember()` (`--typed`); everything else is ordinary RAG.
 
 ## How the turn works
 
@@ -86,7 +115,7 @@ against the record, and `--history` reads the chain back.
 - The embedder is a small multilingual model chosen so the demo runs offline.
   Cross-language hits are visible in the baseline (a Hindi question finds
   German and English passages) but the ranking is rough; their own embedder
-  replaces it in `seed.py` and `chat.py`.
+  replaces it in `agent/seed.py` and `agent/chat.py`.
 - The 8B planner does not reliably flip `scope` to the person themselves when
   a manager who has been asking about contractors asks about their own leave,
   even with an example in the prompt. A stronger model, or the chat history

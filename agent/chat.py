@@ -18,13 +18,13 @@ facts and names the predicates itself, and recall(question) reads them back as
 sentences. No predicates file is involved.
 
 --typed uses the typed tools instead: the app proposes facts under the fixed
-registry in predicates.json, and Recall applies the replace rules.
+registry in data/predicates.json, and Recall applies the replace rules.
 
 Usage:
-  python chat.py --user priya "What is the parental leave policy?" "Does it cover contractors?"
-  python chat.py --user priya                # interactive
-  python chat.py --user priya --history      # what Recall holds, with what each value replaced
-  python chat.py --user priya --typed "..."  # the typed tools over predicates.json instead
+  python agent/chat.py --user priya "What is the parental leave policy?" "Does it cover contractors?"
+  python agent/chat.py --user priya                # interactive
+  python agent/chat.py --user priya --history      # what Recall holds, with what each value replaced
+  python agent/chat.py --user priya --typed "..."  # the typed tools over data/predicates.json instead
 """
 from __future__ import annotations
 
@@ -41,6 +41,7 @@ from polign_recall.client import recall_bin
 from qdrant_client import QdrantClient
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)   # the repo: data/ and transcripts/ live beside agent/
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 HANDBOOK = os.environ.get("HANDBOOK_COLLECTION", "handbook")
 MEMORY = os.environ.get("MEMORY_COLLECTION", "nanostuffs_memory")
@@ -129,7 +130,7 @@ class Assistant:
             # Typed tools: the app proposes facts under a fixed registry.
             # Recall keeps its memory in the same Qdrant, in its own collection.
             cmd = [RECALL_BIN, "-backend", "qdrant", "-url", QDRANT_URL, "mcp", "-write", "-typed",
-                   "-predicates", os.path.join(HERE, "predicates.json"), "-collection", MEMORY]
+                   "-predicates", os.path.join(ROOT, "data", "predicates.json"), "-collection", MEMORY]
             self.memory = Client(command=cmd)
 
     def close(self) -> None:
@@ -207,29 +208,42 @@ class Assistant:
             out.append(note)
         return out
 
-    def turn(self, message: str) -> None:
-        print(f"\n{self.user}> {message}")
+    def respond(self, message: str) -> dict:
+        """One turn, as data: what memory knew, the query sent to Qdrant, the
+        hits, the answer, and what was remembered. turn() prints this; the
+        web server returns it as JSON."""
         t0 = time.time()
         known = self.known()
         if self.memory:
-            print("  memory:   " + ("; ".join(known) if known else "(nothing yet)"))
             plan = self.plan(message, known)
             query = plan["query"]
-            print(f"  query:    {query}")
         else:
             plan = {"facts": {}}
             query = message
-            print(f"  query:    {query}   (as typed; no memory)")
         hits = self.search(query)
-        print("  hits:     " + " | ".join(f"{h['title']} ({h['lang']}, {h['score']:.2f})" for h in hits))
-        print(f"  answer:   {self.answer(message, hits, known)}")
+        answer = self.answer(message, hits, known)
+        remembered: list[str] = []
         if self.memory and self.text:
-            for line in self.remember_text(message):
-                print(f"  remember: {line}")
+            remembered = self.remember_text(message)
         elif self.memory and plan["facts"]:
-            for line in self.remember(plan["facts"]):
-                print(f"  remember: {line}")
-        print(f"  ({time.time() - t0:.1f}s)")
+            remembered = self.remember(plan["facts"])
+        return {"user": self.user, "message": message, "memory": known if self.memory else None,
+                "query": query, "hits": [{"title": h["title"], "lang": h["lang"], "score": round(h["score"], 2)} for h in hits],
+                "answer": answer, "remembered": remembered, "seconds": round(time.time() - t0, 1)}
+
+    def turn(self, message: str) -> None:
+        print(f"\n{self.user}> {message}")
+        r = self.respond(message)
+        if r["memory"] is not None:
+            print("  memory:   " + ("; ".join(r["memory"]) if r["memory"] else "(nothing yet)"))
+            print(f"  query:    {r['query']}")
+        else:
+            print(f"  query:    {r['query']}   (as typed; no memory)")
+        print("  hits:     " + " | ".join(f"{h['title']} ({h['lang']}, {h['score']:.2f})" for h in r["hits"]))
+        print(f"  answer:   {r['answer']}")
+        for line in r["remembered"]:
+            print(f"  remember: {line}")
+        print(f"  ({r['seconds']}s)")
 
 
 def show_history(user: str, text: bool = True) -> None:

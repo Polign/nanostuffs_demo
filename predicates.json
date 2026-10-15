@@ -1,0 +1,8 @@
+{
+  "office": {"cardinality": "single", "value_type": "string", "description": "the office or country the person works from"},
+  "role": {"cardinality": "single", "value_type": "string", "description": "the person's job or what they are responsible for"},
+  "language": {"cardinality": "single", "value_type": "string", "description": "the language the person writes in"},
+  "asking_about": {"cardinality": "single", "value_type": "string", "description": "the policy or document area the person is currently working through"},
+  "scope": {"cardinality": "single", "value_type": "string", "description": "who the current questions are about, such as contractors or full-time staff"},
+  "note": {"cardinality": "multi", "value_type": "string", "description": "a statement worth keeping that no other predicate fits"}
+}

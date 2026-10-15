@@ -1,0 +1,78 @@
+seeded 12 chunks into http://localhost:6333 collection 'handbook' with sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+### Today: retrieval sees only the message (--no-memory)
+
+priya> I manage the contractor team in our Germany office. What's the parental leave policy?
+  query:    I manage the contractor team in our Germany office. What's the parental leave policy?   (as typed; no memory)
+  hits:     Parental leave: Germany supplement (en, 0.73) | Contractors and leave benefits (en, 0.66) | Urlaub: Zusatz für den Standort Deutschland (de, 0.53)
+  answer:   Meridian Works provides parental leave in Germany, including statutory Elternzeit (up to 36 months) and Elterngeld. The company covers the difference between Elterngeld and full salary for the first 12 weeks, and the longer of the two entitlements is applied [Parental leave: Germany supplement].
+  (1.7s)
+
+priya> Does it cover contractors?
+  query:    Does it cover contractors?   (as typed; no memory)
+  hits:     Contractors and leave benefits (en, 0.48) | Contractor time off (en, 0.35) | Trabajo remoto: política de la empresa (es, 0.31)
+  answer:   The passages do not explicitly state whether the policies cover contractors. However, based on the first passage, it is clear that contractors are not eligible for leave benefits like parental leave or paid annual leave. [Contractors and leave benefits]
+  (1.2s)
+
+priya> What about annual leave?
+  query:    What about annual leave?   (as typed; no memory)
+  hits:     Annual leave: company policy (en, 0.72) | Annual leave: United Kingdom supplement (en, 0.63) | Contractor time off (en, 0.56)
+  answer:   Full-time employees receive 25 days of paid annual leave per calendar year, plus public holidays for their office location, with leave accruing monthly [Annual leave: company policy]. UK employees get an additional 8 bank holidays, making it 33 days in total, and can carry over up to 5 days [Annual leave: United Kingdom supplement].
+  (1.8s)
+
+priya> मेरे कॉन्ट्रैक्टर्स को कितने दिन की छुट्टी मिलेगी?
+  query:    मेरे कॉन्ट्रैक्टर्स को कितने दिन की छुट्टी मिलेगी?   (as typed; no memory)
+  hits:     Urlaub: Zusatz für den Standort Deutschland (de, 0.62) | Annual leave: company policy (en, 0.58) | Contractor time off (en, 0.54)
+  answer:   [Contractor time off] Contractors do not accrue annual leave and are not paid for days not worked. Planned time off is agreed in writing with the engagement manager at least two weeks in advance.
+  (1.0s)
+
+### With Recall, chat 1 (Monday)
+
+priya> I manage the contractor team in our Germany office. What's the parental leave policy?
+  memory:   (nothing yet)
+  query:    parental leave policy for contractors in the Germany office
+  hits:     Parental leave: Germany supplement (en, 0.78) | Contractors and leave benefits (en, 0.68) | Urlaub: Zusatz für den Standort Deutschland (de, 0.55)
+  answer:   Meridian Works provides parental leave for employees in the Germany office, including statutory Elternzeit (up to 36 months) and Elterngeld. The company covers the difference between Elterngeld and full salary for the first 12 weeks. [Parental leave: Germany supplement]
+  remember: user role: manager of the contractor team
+  remember: user works at: Germany office
+  (6.1s)
+
+priya> Does it cover contractors?
+  memory:   user role: manager of the contractor team; user works at: Germany office
+  query:    parental leave policy for contractors in Germany
+  hits:     Parental leave: Germany supplement (en, 0.77) | Contractors and leave benefits (en, 0.66) | Urlaub: Zusatz für den Standort Deutschland (de, 0.56)
+  answer:   The passage [Contractors and leave benefits] states that independent contractors and agency workers are not eligible for Meridian Works parental leave, enhanced pay, or paid annual leave. Therefore, it does not cover contractors.
+  remember: (no fact found; text kept as written)
+  (5.3s)
+
+### With Recall, chat 2 (Wednesday: new chat, new process)
+
+priya> What about annual leave?
+  memory:   user role: manager of the contractor team; user works at: Germany office; Does it cover contractors?
+  query:    annual leave policy for contractors in Germany
+  hits:     Parental leave: Germany supplement (en, 0.76) | Contractors and leave benefits (en, 0.67) | Urlaub: Zusatz für den Standort Deutschland (de, 0.66)
+  answer:   Contractors are not eligible for Meridian Works' annual leave benefits. They retain any statutory rights related to annual leave through their own employer or umbrella company. [Contractors and leave benefits]
+  remember: (no fact found; text kept as written)
+  (4.0s)
+
+priya> I've moved to the UK office since last week.
+  memory:   user role: manager of the contractor team; user works at: Germany office; What about annual leave?; Does it cover contractors?
+  query:    annual leave policy for employees in the UK office
+  hits:     Annual leave: United Kingdom supplement (en, 0.80) | Annual leave: company policy (en, 0.74) | Parental leave: United Kingdom supplement (en, 0.65)
+  answer:   The annual leave policy for the UK office provides full-time employees with 25 days of paid annual leave plus public holidays. [Annual leave: company policy] This policy applies to all full-time employees, including contractors, as it states "employees" generally. However, the passage does not explicitly confirm if contractors are included, so it is missing whether contractors are considered employees under this policy.
+  remember: user works at: UK office   (replaces user works at: Germany office)
+  (5.5s)
+
+priya> मेरे कॉन्ट्रैक्टर्स को कितने दिन की छुट्टी मिलेगी?
+  memory:   user role: manager of the contractor team; user works at: UK office (replaced: Germany office); What about annual leave?; Does it cover contractors?
+  query:    annual leave policy for contractors in the UK office
+  hits:     Annual leave: United Kingdom supplement (en, 0.73) | Annual leave: company policy (en, 0.70) | Contractor time off (en, 0.66)
+  answer:   Contractors do not accrue annual leave and are not paid for days not worked. [Contractor time off]
+  remember: (no fact found; text kept as written)
+  (5.6s)
+
+### What Recall holds about priya
+user role: manager of the contractor team
+user works at: UK office    replaced: Germany office
+Does it cover contractors?
+मेरे कॉन्ट्रैक्टर्स को कितने दिन की छुट्टी मिलेगी?
+What about annual leave?

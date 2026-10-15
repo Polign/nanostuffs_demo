@@ -1,5 +1,5 @@
-// The agent on EC2 (server.py in this demo). Only route handlers talk to it;
-// the browser never does, and the user id always comes from the session.
+// The agent (agent/server.py). Only route handlers talk to it; the user id
+// always comes from the session cookie.
 import { cookies } from "next/headers";
 
 export const AGENT_URL = process.env.AGENT_URL ?? "http://127.0.0.1:8000";

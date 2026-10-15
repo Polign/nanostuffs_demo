@@ -36,7 +36,7 @@ T3="What about annual leave?"
 T4="I've moved to the UK office since last week."
 T5="मेरे कॉन्ट्रैक्टर्स को कितने दिन की छुट्टी मिलेगी?"
 
-echo "### Today: retrieval sees only the message (--no-memory)"
+echo "### Without memory (--no-memory)"
 $PY agent/chat.py --user priya --no-memory "$T1" "$T2" "$T3" "$T5" 2>&1 | grep -v Fetching
 echo; echo "### With Recall, chat 1 (Monday)"
 $PY agent/chat.py --user priya $TEXT "$T1" "$T2" 2>&1 | grep -v Fetching

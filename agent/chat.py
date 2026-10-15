@@ -9,8 +9,7 @@ Each turn:
   5. remember - the proposed facts are written to Recall; a new value replaces
                 the old one and the old one stays in history
 
---no-memory skips steps 1, 2 and 5: the raw message goes to Qdrant, which is
-what a retrieval system without conversation context does today.
+--no-memory skips steps 1, 2 and 5: the raw message goes to Qdrant.
 
 By default memory uses Recall's text tools: the whole message goes to
 remember(text), Recall's extraction model (RECALL_EXTRACT_MODEL) works out the
@@ -267,7 +266,7 @@ def show_history(user: str, text: bool = True) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--user", required=True, help="who is chatting; one memory subject per person")
-    p.add_argument("--no-memory", action="store_true", help="retrieve on the raw message, as today")
+    p.add_argument("--no-memory", action="store_true", help="retrieve on the raw message, without memory")
     p.add_argument("--history", action="store_true", help="print what Recall holds about the user and exit")
     p.add_argument("--typed", action="store_true", help="the typed tools over predicates.json instead of Recall's default text tools")
     p.add_argument("messages", nargs="*", help="scripted turns; none means interactive")

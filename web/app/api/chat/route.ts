@@ -1,5 +1,4 @@
-// The one change the Nanostuffs front end needs: the route handler that
-// already forwards a message to the agent adds the signed-in user's id.
+// Forwards the message to the agent with the signed-in user's id.
 import { agent, signedInUser } from "@/lib/agent";
 
 export async function POST(request: Request) {

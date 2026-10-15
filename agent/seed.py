@@ -1,7 +1,6 @@
 """Load the sample handbook into Qdrant with a multilingual embedder.
 
-Stands in for the Nanostuffs document pipeline. Swap the embedder for the
-multilingual model you already use; nothing in chat.py depends on which one.
+Set EMBEDDER to use another model; chat.py embeds queries with the same one.
 """
 import json
 import os

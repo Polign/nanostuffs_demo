@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The browser demo: the agent (server.py, the EC2 piece) on :8000 and the
-# Next.js app on :3000. Ctrl-C stops both.
+# The browser version: the agent on :8000 and the Next.js app on :3000.
+# Ctrl-C stops both.
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -x .venv/bin/python ] || { echo "run ./setup.sh first" >&2; exit 1; }

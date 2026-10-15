@@ -1,5 +1,5 @@
 // What Recall holds about the signed-in person, with what each value
-// replaced. DELETE wipes it, for the demo only.
+// replaced. DELETE drops the person's memory collection.
 import { agent, signedInUser } from "@/lib/agent";
 
 export async function GET() {

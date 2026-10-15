@@ -1,6 +1,5 @@
-// Sign in for the demo: a name in a cookie stands in for the real session.
-// In the Nanostuffs app the user id comes from their existing auth; the
-// point is only that the route handlers read it server-side.
+// Sign-in: the user id is kept in an httpOnly cookie and read server-side
+// by the other route handlers.
 import { cookies } from "next/headers";
 import { SESSION_COOKIE, signedInUser } from "@/lib/agent";
 

@@ -1,14 +1,13 @@
 """The agent behind the Next.js chat: HTTP in front of chat.py.
 
-This is the piece that runs on the EC2 instance in the Nanostuffs setup. The
-Next.js route handler forwards {userId, message} here; this process keeps one
-Recall client per person and answers with the whole turn as JSON, so the UI
-can show what memory knew, the query, the hits and what was remembered.
+The Next.js route handlers forward {userId, message} here. This process
+keeps one Recall client per person and answers with the whole turn as JSON:
+what memory knew, the query, the hits, the answer, what was remembered.
 
     python agent/server.py      # http://127.0.0.1:8000
     POST /chat     {"userId": "priya", "message": "...", "memory": true}
     GET  /history?userId=priya  what Recall holds, with what each value replaced
-    POST /reset    {"userId": "priya"}   forget everything about this person (demo only)
+    POST /reset    {"userId": "priya"}   drop the person's memory collection
 """
 from __future__ import annotations
 
@@ -50,8 +49,7 @@ def history(user: str) -> list[dict]:
 
 
 def reset(user: str) -> None:
-    """Drops the person's memory collection. Demo convenience, not a product
-    operation: Recall itself never deletes."""
+    """Drops the person's memory collection."""
     with _registry_lock:
         for memory in (True, False):
             a = _assistants.pop((user, memory), None)

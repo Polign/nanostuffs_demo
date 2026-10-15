@@ -87,7 +87,7 @@ export default function Home() {
     return (
       <main className="shell">
         <h1>Policy assistant</h1>
-        <p className="lead">Sign in as anyone. The name stands in for the user id your session already carries; the route handlers read it server-side and pass it to the agent.</p>
+        <p className="lead">Sign in with any name. The route handlers read it from the session cookie and pass it to the agent.</p>
         <form onSubmit={signIn} className="row">
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="user id" />
           <button type="submit">Sign in</button>
@@ -172,7 +172,7 @@ export default function Home() {
           )}
           <div className="row">
             <button className="quiet" onClick={() => setTurns([])}>New chat</button>
-            <button className="quiet" onClick={forgetMe}>Forget me (demo only)</button>
+            <button className="quiet" onClick={forgetMe}>Forget me</button>
           </div>
         </aside>
       </div>

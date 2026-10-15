@@ -1,129 +1,108 @@
-# Follow-up questions in enterprise RAG, with Recall by Polign
+# Document Q&A with per-person memory
 
-A small demo for Nanostuffs. The setup mirrors theirs: documents in Qdrant, a
-multilingual embedder, a chat per person. The problem it addresses: a
-follow-up question ("Does it cover contractors?", "What about annual leave?")
-reaches the retriever without the context that makes it answerable.
+A retrieval-augmented assistant over a policy handbook, with one memory per
+person kept by [Recall](https://github.com/Polign/recall) in the same Qdrant
+as the documents. Before retrieval the assistant asks Recall what it knows
+about the person and rewrites the message into a self-contained query. After
+answering it hands the message to Recall, whose extraction model files the
+facts. A new value replaces the old one and the old one stays in history.
 
-What the demo adds is one memory per person, kept by
-[Recall](https://github.com/Polign/recall) inside the same Qdrant. Before
-retrieval the app asks Recall what it knows about the person (office, role,
-what they were asking about) and rewrites the message into a self-contained
-query. After answering it hands the whole message to Recall, whose extraction
-model works out the facts and files them. A new value replaces the old one and
-the old one stays in history, so "I moved to the UK office" changes every
-later answer and someone can still see when it changed.
+Stack: Qdrant, a multilingual embedder, a Python agent, a Next.js front end.
 
-## Run it
+## Setup
 
-Requirements: Docker (for Qdrant), Python 3.10+, and a model for the chat's
-rewrite and answer steps: `qwen3:8b` through a local [Ollama](https://ollama.com)
-by default, or set `DEMO_MODEL=anthropic:claude-opus-5-5` with
-`ANTHROPIC_API_KEY` (`pip install anthropic` in the venv). Recall's extraction
-model is Claude when `ANTHROPIC_API_KEY` is set, else the local qwen3
-(`RECALL_EXTRACT_MODEL` overrides). Claude is strongly recommended for
-extraction.
+Requirements: Docker, Python 3.10+, Node 20+, and a model for the rewrite
+and answer steps. By default that is `qwen3:8b` through a local
+[Ollama](https://ollama.com); set `DEMO_MODEL=anthropic:claude-opus-5-5` with
+`ANTHROPIC_API_KEY` to use Claude (`pip install anthropic` in the venv).
+Recall's extraction model is Claude when `ANTHROPIC_API_KEY` is set, else the
+local qwen3; `RECALL_EXTRACT_MODEL` overrides.
 
 ```sh
-./setup.sh      # starts Qdrant, makes the venv, checks the models, seeds the handbook
-./demo.sh       # baseline, then two chats with memory, then the history
-./web.sh        # the same assistant in a browser: Next.js on :3000, the agent on :8000
+./setup.sh      # starts Qdrant, creates the venv, checks the models, seeds the handbook
+./demo.sh       # scripted run: without memory, then two chats with memory, then the history
+./web.sh        # the browser version: Next.js on :3000, the agent on :8000
 ```
 
-## In the browser
-
-`./web.sh` runs the demo the way Nanostuffs would wire it. `agent/server.py` is the
-agent (the EC2 piece): HTTP in front of the same per-turn loop, one Recall
-client per person. `web/` is a small Next.js app. Its route handlers read the
-signed-in user's id from the session cookie and forward `{userId, message}`
-to the agent; the browser never talks to Recall. Each answer expands to show
-what memory knew, the query sent to Qdrant, the passages, and what was
-remembered, and a side panel shows what Recall holds about the person. "New
-chat" clears the screen but not the memory, which is the point.
-
-| Route handler | Does |
-| --- | --- |
-| `POST /api/session` | signs in: a name in an httpOnly cookie stands in for the real session |
-| `POST /api/chat` | forwards `{userId, message, memory}` to the agent's `/chat` |
-| `GET /api/history` | what Recall holds about the signed-in person, with what each value replaced |
-| `DELETE /api/history` | wipes it (demo only; Recall itself never deletes) |
-
-Set `AGENT_URL` to point the app at an agent elsewhere.
-
 `./demo.sh --reset` wipes the memory collections and reseeds the handbook.
-`transcripts/cli-text.txt` is the output of one run with Claude extracting.
-
-`./demo.sh --typed` runs the same turns on Recall's typed tools instead: the
-app proposes facts under the fixed registry in `predicates.json` and Recall
-applies the replace rules. This is the path for a team that wants to control
-exactly what gets remembered. `transcripts/cli-typed.txt` is one run of that.
+`./demo.sh --typed` runs the same turns with the typed tools and the fixed
+registry in `data/predicates.json`. Saved runs of both are in `transcripts/`.
 
 Interactive, as any user:
 
 ```sh
 .venv/bin/python agent/chat.py --user priya
-.venv/bin/python agent/chat.py --user priya --history      # what is remembered, and what each value replaced
-.venv/bin/python agent/chat.py --user priya --no-memory "Does it cover contractors?"   # today's behaviour
-.venv/bin/python agent/chat.py --user priya --typed "What about annual leave?"          # typed tools instead
+.venv/bin/python agent/chat.py --user priya --history
+.venv/bin/python agent/chat.py --user priya --no-memory "Does it cover contractors?"
 ```
 
-## What is in here
+## Layout
 
 ```
-setup.sh, demo.sh, web.sh   one-time setup, the scripted CLI run, the browser demo
-agent/                      the agent: what runs on the EC2 instance in the Nanostuffs setup
+setup.sh, demo.sh, web.sh   setup, the scripted CLI run, the browser demo
+agent/
   chat.py                   the per-turn loop: recall, rewrite, search, answer, remember; also the CLI
-  server.py                 the same loop as an HTTP service for the web app
-  seed.py                   embeds the handbook and loads it into Qdrant (stands in for their pipeline)
+  server.py                 the same loop as an HTTP service
+  seed.py                   embeds the handbook and loads it into Qdrant
 data/
-  handbook.json             12 policy chunks for a fictional company, three languages
-  predicates.json           the registry for --typed mode; unused in the default text mode
-web/                        the Next.js chat: sign-in, chat, memory panel, three route handlers
-transcripts/                saved CLI runs: cli-text.txt (default) and cli-typed.txt
+  handbook.json             12 policy chunks, in English, German and Spanish
+  predicates.json           the registry for --typed mode
+web/                        the Next.js app: sign-in, chat, memory panel
+transcripts/                saved CLI runs
 ```
 
-The Recall part of `chat.py` is `known()` and `remember_text()` (default) or
-`remember()` (`--typed`); everything else is ordinary RAG.
-
-## How the turn works
+## How a turn works
 
 ```
-message ──► Recall: what do we know about this person? ──► model: rewrite into a
-            (office, role, scope, topic; with what each        self-contained query,
-             value replaced)                                   propose new facts
-                                                                      │
-                 answer ◄── model, from the passages ◄── Qdrant search (handbook)
-                   │
-                   └──► Recall: remember the proposed facts (old values kept in history)
+message ──► Recall: what is known about this person ──► model: rewrite into a
+                                                         self-contained query
+                                                                │
+          answer ◄── model, from the passages ◄── Qdrant search (handbook)
+            │
+            └──► Recall: remember(text); the extractor files the facts and
+                 names what they replace
 ```
 
-Recall runs as a small process beside the app (`recall -backend qdrant mcp
--extract-model ...`), reached through the `polign-recall` Python client. Its
-collections live in the same Qdrant as the handbook, one per person in text
-mode. The app never decides what to forget: the extractor sees what memory
-already holds and names what a new statement replaces, Recall checks that
-against the record, and `--history` reads the chain back.
+Recall runs as a process beside the agent (`recall -backend qdrant mcp
+-extract-model ...`), reached through the `polign-recall` Python client, one
+collection per person. The Recall calls in `chat.py` are `known()` and
+`remember_text()`; with `--typed`, `remember()`.
 
-## Honest notes
+## Browser
 
-- Within one chat, passing the last few turns to the rewrite step solves the
-  first follow-up on its own. Memory earns its place on the second chat, the
-  long chat whose start has scrolled out of the window, and the correction.
-- The planner and answerer here use a local 8B model with thinking off, so each
-  turn takes 3 to 5 seconds on a laptop. With the model they already run the
-  cost is two short calls per turn.
-- The embedder is a small multilingual model chosen so the demo runs offline.
-  Cross-language hits are visible in the baseline (a Hindi question finds
-  German and English passages) but the ranking is rough; their own embedder
-  replaces it in `agent/seed.py` and `agent/chat.py`.
-- The 8B planner does not reliably flip `scope` to the person themselves when
-  a manager who has been asking about contractors asks about their own leave,
-  even with an example in the prompt. A stronger model, or the chat history
-  in the rewrite prompt, covers this; test it with the real model first.
-- Recall on Qdrant uses vector search only for its own reads (no keyword
-  ranking) and cannot resume agents. Neither matters here: reads are by
-  subject, one person.
-- Text mode needs recall 0.19.0 or later. Before that release the extractor
-  did not see what memory already held, so "I've moved to the UK office"
-  landed beside "works in the Germany office" instead of replacing it.
-  `RECALL_BIN` points the demo at a locally built recall when needed.
+`agent/server.py` serves the loop over HTTP, one Recall client per person:
+
+```
+POST /chat     {"userId": "...", "message": "...", "memory": true}
+GET  /history?userId=...
+POST /reset    {"userId": "..."}
+```
+
+`web/` is a Next.js app. Its route handlers read the signed-in user from the
+session cookie and forward the message to the agent; the browser never calls
+the agent or Recall directly. Each answer expands to show what memory knew,
+the query sent to Qdrant, the passages, and what was remembered. A side panel
+shows what Recall holds about the person. "New chat" clears the screen, not
+the memory.
+
+| Route handler | Does |
+| --- | --- |
+| `POST /api/session` | signs in; the name is kept in an httpOnly cookie |
+| `POST /api/chat` | forwards `{userId, message, memory}` to the agent |
+| `GET /api/history` | what Recall holds about the signed-in person, with what each value replaced |
+| `DELETE /api/history` | drops the person's memory collection |
+
+`AGENT_URL` points the app at an agent elsewhere.
+
+## Configuration
+
+| Variable | Default | Used by |
+| --- | --- | --- |
+| `QDRANT_URL`, `QDRANT_API_KEY` | `http://localhost:6333` | seed, agent, Recall |
+| `EMBEDDER` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | seed, agent |
+| `DEMO_MODEL` | `ollama:qwen3:8b` | rewrite and answer |
+| `RECALL_EXTRACT_MODEL` | `anthropic:claude-opus-5-5` when the key is set, else `ollama:qwen3:8b` | Recall extraction |
+| `RECALL_BIN` | the `polign-recall` wheel's binary | a locally built `recall` |
+| `AGENT_URL` | `http://127.0.0.1:8000` | the Next.js route handlers |
+
+Recall 0.19.0 or later is required.

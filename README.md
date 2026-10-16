@@ -105,4 +105,13 @@ the memory.
 | `RECALL_BIN` | the `polign-recall` wheel's binary | a locally built `recall` |
 | `AGENT_URL` | `http://127.0.0.1:8000` | the Next.js route handlers |
 
-Recall 0.19.0 or later is required.
+Recall 0.20.2 or later is required.
+
+Recall searches memory by meaning when the extraction model allows it. With
+`anthropic:*` it uses its built-in `local:all-minilm-l6-v2` model (an 86 MB
+download on first use, no key). With `ollama:*` it uses `nomic-embed-text`
+through Ollama, which `./setup.sh` pulls. The demo names its memory
+collections itself, so this does not change which collection it writes. A
+memory collection written by an older Recall with word search keeps word
+search; `./demo.sh --reset` drops it so the next run starts on the new
+embedder.

@@ -30,6 +30,13 @@ if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
 else
   echo "ANTHROPIC_API_KEY is not set: Recall extracts with the local qwen3:8b through Ollama (slower, weaker)"
 fi
+if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${RECALL_EXTRACT_MODEL:-}" ] || [[ "${RECALL_EXTRACT_MODEL:-}" == ollama:* ]]; then
+  # Recall embeds memory with Ollama's nomic-embed-text when it extracts with Ollama.
+  command -v ollama >/dev/null || { echo "ollama is not installed; install it or set ANTHROPIC_API_KEY" >&2; exit 1; }
+  curl -sf "${OLLAMA_URL:-http://localhost:11434}/api/tags" >/dev/null || { echo "ollama is not running; start it (ollama serve)" >&2; exit 1; }
+  ollama list | grep -q '^nomic-embed-text' || ollama pull nomic-embed-text
+  echo "ollama nomic-embed-text ready for Recall's memory search"
+fi
 if [[ "${DEMO_MODEL:-ollama:qwen3:8b}" == ollama:* ]] || [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   command -v ollama >/dev/null || { echo "ollama is not installed; install it or set DEMO_MODEL=anthropic:claude-opus-5-5 with ANTHROPIC_API_KEY" >&2; exit 1; }
   curl -sf "${OLLAMA_URL:-http://localhost:11434}/api/tags" >/dev/null || { echo "ollama is not running; start it (ollama serve)" >&2; exit 1; }
